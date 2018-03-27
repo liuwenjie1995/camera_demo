@@ -3,6 +3,7 @@ package com.uploaddemo;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -35,6 +36,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.face_add_button:
             {
                 Toast.makeText(MainActivity.this, "你好!", Toast.LENGTH_LONG).show();
+
+                Log.d("info","跳转到拍照");
                 Intent it = new Intent(MainActivity.this,FaceAddActivity.class);
                 startActivity(it);
             }

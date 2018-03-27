@@ -59,7 +59,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -72,21 +71,17 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-/*
-* 这是一个碎片类，继承了Fragment，OnClickListener，OnRequestPermissionResultCallback
-*用于创建图像获取的预览,并返回处理的结果
-*
-* */
-
 public class Camera2BasicFragment extends Fragment
         implements View.OnClickListener, ActivityCompat.OnRequestPermissionsResultCallback {
 
     /**
+     * 转换成为JPEG图像存储
      * Conversion from screen rotation to JPEG orientation.
      */
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
+
     static {
         ORIENTATIONS.append(Surface.ROTATION_0, 90);
         ORIENTATIONS.append(Surface.ROTATION_90, 0);
@@ -95,12 +90,13 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     *
      * Tag for the {@link Log}.
      */
     private static final String TAG = "Camera2BasicFragment";
 
     /**
-     * 判断相机处理的情况
+     * 指定会话阶段
      * Camera state: Showing camera preview.
      */
     private static final int STATE_PREVIEW = 0;
@@ -128,15 +124,15 @@ public class Camera2BasicFragment extends Fragment
     /**
      * Max preview width that is guaranteed by Camera2 API
      */
-    private static final int MAX_PREVIEW_WIDTH = 1440;
+    private static final int MAX_PREVIEW_WIDTH = 1920;
 
     /**
      * Max preview height that is guaranteed by Camera2 API
      */
-    private static final int MAX_PREVIEW_HEIGHT = 1440;
+    private static final int MAX_PREVIEW_HEIGHT = 1080;
 
     /**
-     * 预览界面，若能创建界面则打开创建相机预览
+     * 生成预览层
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
      * {@link TextureView}.
      */
@@ -165,7 +161,6 @@ public class Camera2BasicFragment extends Fragment
     };
 
     /**
-     * 相机参与管道通信的主要成员
      * ID of the current {@link CameraDevice}.
      */
     private String mCameraId;
@@ -191,6 +186,7 @@ public class Camera2BasicFragment extends Fragment
     private Size mPreviewSize;
 
     /**
+     * 开启statecallback，进入相机开启阶段
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
      */
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
@@ -224,7 +220,7 @@ public class Camera2BasicFragment extends Fragment
     };
 
     /**
-     * 创建一个新的线程处理事件，不影响已经运行的主UI程序
+     * 添加一个拍照后台线程
      * An additional thread for running tasks that shouldn't block the UI.
      */
     private HandlerThread mBackgroundThread;
@@ -245,7 +241,7 @@ public class Camera2BasicFragment extends Fragment
     private File mFile;
 
     /**
-     * 当有图像需要存储时将会被调用
+     * 当图像截取好时可以进行处理
      * This a callback object for the {@link ImageReader}. "onImageAvailable" will be called when a
      * still image is ready to be saved.
      */
@@ -260,6 +256,7 @@ public class Camera2BasicFragment extends Fragment
     };
 
     /**
+     * 预览请求，完成时mstate转换为1
      * {@link CaptureRequest.Builder} for the camera preview
      */
     private CaptureRequest.Builder mPreviewRequestBuilder;
@@ -292,6 +289,9 @@ public class Camera2BasicFragment extends Fragment
     private int mSensorOrientation;
 
     /**
+     * 图像捕获过程，在完成捕获之前一直处于onprocess，
+     * 通过修改方法内部mState判断现在进行哪一步操作
+     *
      * A {@link CameraCaptureSession.CaptureCallback} that handles events related to JPEG capture.
      */
     private CameraCaptureSession.CaptureCallback mCaptureCallback
@@ -377,6 +377,8 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * 图像编辑类，不用动只修改分辨率
+     *
      * Given {@code choices} of {@code Size}s supported by a camera, choose the smallest one that
      * is at least as large as the respective texture view size, and that is at most as large as the
      * respective max size, and whose aspect ratio matches with the specified value. If such size
@@ -393,7 +395,7 @@ public class Camera2BasicFragment extends Fragment
      * @return The optimal {@code Size}, or an arbitrary one if none were big enough
      */
     private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
-            int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
+                                          int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
 
         // Collect the supported resolutions that are at least as big as the preview Surface
         List<Size> bigEnough = new ArrayList<>();
@@ -405,7 +407,7 @@ public class Camera2BasicFragment extends Fragment
             if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
                     option.getHeight() == option.getWidth() * h / w) {
                 if (option.getWidth() >= textureViewWidth &&
-                    option.getHeight() >= textureViewHeight) {
+                        option.getHeight() >= textureViewHeight) {
                     bigEnough.add(option);
                 } else {
                     notBigEnough.add(option);
@@ -429,6 +431,7 @@ public class Camera2BasicFragment extends Fragment
         return new Camera2BasicFragment();
     }
 
+    //继承了碎片的代码，重写生成GUI的内部方法，生成存储文件的路径
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -493,6 +496,8 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * s此处设置前置摄像机
+     *
      * Sets up member variables related to camera.
      *
      * @param width  The width of available size for camera preview
@@ -507,7 +512,7 @@ public class Camera2BasicFragment extends Fragment
                 CameraCharacteristics characteristics
                         = manager.getCameraCharacteristics(cameraId);
 
-                // We don't use a front facing camera in this sample. 调用前置摄像头
+                // We don't use a front facing camera in this sample.
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
                     continue;
@@ -608,6 +613,7 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * 动态请求相机的权限，创捷cameramanager
      * Opens the camera specified by {@link Camera2BasicFragment#mCameraId}.
      */
     private void openCamera(int width, int height) {
@@ -681,6 +687,7 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * 创建预览请求
      * Creates a new {@link CameraCaptureSession} for camera preview.
      */
     private void createCameraPreviewSession() {
@@ -741,6 +748,8 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * 设置预览尺寸
+     *
      * Configures the necessary {@link android.graphics.Matrix} transformation to `mTextureView`.
      * This method should be called after the camera preview size is determined in
      * setUpCameraOutputs and also the size of `mTextureView` is fixed.
@@ -774,6 +783,7 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * 初始化拍照程序
      * Initiate a still image capture.
      */
     private void takePicture() {
@@ -781,6 +791,7 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * 发送捕获请求
      * Lock the focus as the first step for a still image capture.
      */
     private void lockFocus() {
@@ -816,6 +827,7 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
+     * 开始拍照
      * Capture a still picture. This method should be called when we get a response in
      * {@link #mCaptureCallback} from both {@link #lockFocus()}.
      */
@@ -839,6 +851,7 @@ public class Camera2BasicFragment extends Fragment
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
 
+            //此处重写了capturecallback方法，将会销毁上一个capturecallback
             CameraCaptureSession.CaptureCallback CaptureCallback
                     = new CameraCaptureSession.CaptureCallback() {
 

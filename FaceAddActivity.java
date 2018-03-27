@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.icu.text.SimpleDateFormat;
+import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -63,21 +64,41 @@ public class FaceAddActivity extends BaseActivity implements View.OnClickListene
 
     private void showCamera()
     {
-        //相机动态验证
-        int checkCallPhonePermission = ContextCompat.checkSelfPermission(FaceAddActivity.this, Manifest.permission.CAMERA);
-        if(checkCallPhonePermission != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(FaceAddActivity.this,new String[]{Manifest.permission.CAMERA},222);
-        }else{
-            //todo camera return bitmaps
-            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
-        }
+            Intent it = new Intent(FaceAddActivity.this,CameraActivity.class);
+            startActivity(it);
     }
 
     public void upload_user()
     {
             //todo upload user
     }
+
+    public void showallpic()
+    {
+        //todo 需要将所有图片都显示出来
+        try {
+
+            ArrayList<Image> imagelist  = (ArrayList<Image>) this.getIntent().getSerializableExtra("imagelist");
+            if(imagelist.size()>1)
+            {
+                for (Image im : imagelist)
+                {
+
+                    Log.d("info","图片高度:"+im.getHeight());
+
+                }
+            }
+            else
+            {
+                Log.d("info","没有传来图片");
+            }
+        }catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+    }
+
 
     private static Uri getOutputMediaFileUri(int type){
         return Uri.fromFile(getOutputMediaFile(type));
