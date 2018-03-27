@@ -25,11 +25,16 @@ import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
 
 /**
  * Created by liuwenjie on 2018/3/26.
+ *  图片收集使用了封装好的api,计划尝试使用camera2拍摄图片
+ *  缓存文件使用使用长度为9的ArrayList进行保存,传递给upload方法
+ *
+ *
  */
 
 public class FaceAddActivity extends BaseActivity implements View.OnClickListener {
 
-    private Button camera_button,upload_button;
+    private Button cameras_button,uploads_button;
+    private ArrayList<Bitmap> bitmaps = new ArrayList<>();
     public static final int MEDIA_TYPE_IMAGE = 1;
     private Uri fileUri;
     private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
@@ -38,56 +43,40 @@ public class FaceAddActivity extends BaseActivity implements View.OnClickListene
         super.onCreate(savedInstanceState);
         setContentView(R.layout.add_face);
 
-        camera_button = (Button)findViewById(R.id.camera_button);
-        upload_button = (Button) findViewById(R.id.upload_api_button);
+        cameras_button = (Button)findViewById(R.id.camera_button);
+        uploads_button = (Button) findViewById(R.id.upload_api_button);
 
-        camera_button.setOnClickListener(this);
-        upload_button.setOnClickListener(this);
+        cameras_button.setOnClickListener(this);
+        uploads_button.setOnClickListener(this);
 }
 
     @Override
     public void onClick(View v) {
-        switch (v.getId())
-        {
+        switch (v.getId()) {
             case R.id.camera_button:
-            {
-                ArrayList<Bitmap> userhead_list = new ArrayList<>();
-                /*
-               使用camera2 或者 camera 进行相机处理
-               判断获取的api是否支持camera2
-               打开camera进行9次图像编辑,返回一个图像列表
-                       */
-                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-//                fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
-//                fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
-//                intent.putExtra(MediaStore.EXTRA_OUTPUT,fileUri);
-                if (Build.VERSION.SDK_INT >= 23) {
-                    int checkCallPhonePermission = ContextCompat.checkSelfPermission(FaceAddActivity.this, Manifest.permission.CAMERA);
-                    if(checkCallPhonePermission != PackageManager.PERMISSION_GRANTED){
-                        ActivityCompat.requestPermissions(FaceAddActivity.this,new String[]{Manifest.permission.CAMERA},222);
-                        return;
-                    }else{
-                        showCamera();
-                    }
-                } else {
-                    showCamera();
-                }
-                startActivityForResult(intent,CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
-            }
+                showCamera();
+            case R.id.upload_api_button:
+                upload_user();
+
         }
     }
 
     private void showCamera()
     {
+        //相机动态验证
+        int checkCallPhonePermission = ContextCompat.checkSelfPermission(FaceAddActivity.this, Manifest.permission.CAMERA);
+        if(checkCallPhonePermission != PackageManager.PERMISSION_GRANTED){
+            ActivityCompat.requestPermissions(FaceAddActivity.this,new String[]{Manifest.permission.CAMERA},222);
+        }else{
+            //todo camera return bitmaps
+            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+        }
+    }
 
-        // create Intent to take a picture and return control to the calling application
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-//
-//        fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE); // create a file to save the image
-//        intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri); // set the image file name
-
-        // start the image capture Intent
-        startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+    public void upload_user()
+    {
+            //todo upload user
     }
 
     private static Uri getOutputMediaFileUri(int type){
@@ -97,7 +86,7 @@ public class FaceAddActivity extends BaseActivity implements View.OnClickListene
     /**
      *introduce:创建一个文件用于保存数字媒体文件
      *    usage:使用type设置创建文件的格式,1代表图像文件,2代表视频文件
-     *   finally:
+     *   finally:返回一个file,转交给uri函数传递文件地址
      * */
     private static File getOutputMediaFile(int type){
         // To be safe, you should check that the SDCard is mounted
@@ -117,7 +106,6 @@ public class FaceAddActivity extends BaseActivity implements View.OnClickListene
         }
 
         // Create a media file name
-        //创建一个新的文件,用于存放文件
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile;
         if (type == MEDIA_TYPE_IMAGE){
