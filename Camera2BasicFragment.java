@@ -22,6 +22,7 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.ImageFormat;
@@ -42,6 +43,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -58,6 +60,8 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+
+import com.uploaddemo.utils.Serimage;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -130,6 +134,11 @@ public class Camera2BasicFragment extends Fragment
      * Max preview height that is guaranteed by Camera2 API
      */
     private static final int MAX_PREVIEW_HEIGHT = 1080;
+
+    /**
+     * 添加一个存储图像的列表
+     * */
+    private ArrayList<String> imagelist = new ArrayList<>();
 
     /**
      * 生成预览层
@@ -251,6 +260,13 @@ public class Camera2BasicFragment extends Fragment
         @Override
         public void onImageAvailable(ImageReader reader) {
             mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+            //todo 此处获取图片
+            String dir = Environment.getExternalStorageDirectory()+"/yunshitu/mypic";
+            String state  = Environment.getExternalStorageState();
+            if (!state.equals(Environment.MEDIA_MOUNTED))
+            {
+
+            }
         }
 
     };
@@ -305,19 +321,22 @@ public class Camera2BasicFragment extends Fragment
                 }
                 case STATE_WAITING_LOCK: {
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
+                    Log.d("info"," astate:"+String.valueOf(afState));
                     if (afState == null) {
                         captureStillPicture();
-                    } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
+                    }
+                    else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
                         // CONTROL_AE_STATE can be null on some devices
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
-                        if (aeState == null ||
-                                aeState == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
-                            mState = STATE_PICTURE_TAKEN;
-                            captureStillPicture();
-                        } else {
-                            runPrecaptureSequence();
-                        }
+                            if (aeState == null ||
+                                    aeState == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
+                                mState = STATE_PICTURE_TAKEN;
+                                captureStillPicture();
+                            }
+                            else {
+                                runPrecaptureSequence();
+                            }
                     }
                     break;
                 }
@@ -361,7 +380,7 @@ public class Camera2BasicFragment extends Fragment
 
     /**
      * Shows a {@link Toast} on the UI thread.
-     *
+     *显示拍照记录
      * @param text The message to show
      */
     private void showToast(final String text) {
@@ -792,6 +811,8 @@ public class Camera2BasicFragment extends Fragment
 
     /**
      * 发送捕获请求
+     * 在此处将capture改为RepeatingRequest，多次请求直到获取足够的文件集合
+     *
      * Lock the focus as the first step for a still image capture.
      */
     private void lockFocus() {
@@ -801,14 +822,14 @@ public class Camera2BasicFragment extends Fragment
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             // Tell #mCaptureCallback to wait for the lock.
             mState = STATE_WAITING_LOCK;
-            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
     /**
+     * 此处提交request请求，交给图像处理
      * Run the precapture sequence for capturing a still image. This method should be called when
      * we get a response in {@link #mCaptureCallback} from {@link #lockFocus()}.
      */
@@ -819,15 +840,26 @@ public class Camera2BasicFragment extends Fragment
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             // Tell #mCaptureCallback to wait for the precapture sequence to be set.
             mState = STATE_WAITING_PRECAPTURE;
-            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+//            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, mBackgroundHandler);
+
+            mCaptureSession.setRepeatingRequest(this.mPreviewRequestBuilder.build(),mCaptureCallback,mBackgroundHandler);
+            try {
+                wait(50);
+            }catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
     /**
-     * 开始拍照
+     * 开始拍照，在此处建立capture请求
+     *
+     * 在此处修改
+     *
      * Capture a still picture. This method should be called when we get a response in
      * {@link #mCaptureCallback} from both {@link #lockFocus()}.
      */
@@ -838,19 +870,18 @@ public class Camera2BasicFragment extends Fragment
                 return;
             }
             // This is the CaptureRequest.Builder that we use to take a picture.
-            final CaptureRequest.Builder captureBuilder =
-                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-            captureBuilder.addTarget(mImageReader.getSurface());
+              final CaptureRequest.Builder captureBuilder =
+                      mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+              captureBuilder.addTarget(mImageReader.getSurface());
 
-            // Use the same AE and AF modes as the preview.
-            captureBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            setAutoFlash(captureBuilder);
+              // Use the same AE and AF modes as the preview.
+              captureBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                      CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+              setAutoFlash(captureBuilder);
 
-            // Orientation
-            int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
-
+              // Orientation
+              int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+              captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
             //此处重写了capturecallback方法，将会销毁上一个capturecallback
             CameraCaptureSession.CaptureCallback CaptureCallback
                     = new CameraCaptureSession.CaptureCallback() {
@@ -859,10 +890,28 @@ public class Camera2BasicFragment extends Fragment
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
+
                     showToast("Saved: " + mFile);
                     Log.d(TAG, mFile.toString());
                     unlockFocus();
+
+                    try {
+                        wait(50);
+                    }catch (InterruptedException e)
+                    {
+                        e.printStackTrace();
+                    }
+
+                    if (imagelist.size()>5)
+                    {
+                        Serimage serimage = new Serimage(imagelist);
+                        Intent i = new Intent(getActivity(),FaceAddActivity.class);
+                        i.putExtra("imagelist",serimage);
+                        startActivity(i);
+                    }
                 }
+
+
             };
 
             mCaptureSession.stopRepeating();
